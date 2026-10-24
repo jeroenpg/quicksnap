@@ -1,0 +1,24 @@
+[package]
+name = "quicksnap"
+version = "0.1.0"
+edition = "2021"
+description = "Instant region screenshots with arrows for KDE Plasma (Wayland)"
+license = "MIT"
+repository = "https://github.com/jeroenpg/quicksnap"
+readme = "README.md"
+
+[dependencies]
+smithay-client-toolkit = "0.19"
+wayland-client = "0.31"
+wayland-protocols = { version = "0.32", features = ["client"] }
+zbus = { version = "5", default-features = false, features = ["blocking-api", "async-io"] }
+tiny-skia = { version = "0.11", default-features = false, features = ["std", "simd"] }
+png = "0.17"
+serde = "1"
+libc = "0.2"
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1

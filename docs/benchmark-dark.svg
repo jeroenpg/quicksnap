@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="364" viewBox="0 0 760 364" role="img"
+  aria-labelledby="t d">
+<title id="t">Time until you can start selecting</title>
+<desc id="d">QuickSnap shows its overlay in about 65 to 70 milliseconds. On four monitors Spectacle needs 1.7 to 6.4
+seconds and Flameshot 10.7 to 36.3 seconds; on one monitor both need about half a second.</desc>
+<style>
+  text { font: 13px -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; fill: #c3c2b7; }
+  .title, .strong { font-weight: 600; fill: #f0efec; }
+  .ours { fill: #3987e5; }
+  .other { fill: #5f5e59; }
+</style>
+<text x="0" y="24" class="title">4 monitors · 12720×3840 px (laptop at 200%)</text>
+<text x="288" y="50.0" class="label strong" text-anchor="end">QuickSnap</text><rect x="300" y="34" width="3.0" height="22" rx="4" class="ours"/><text x="311.0" y="50.0" class="value strong">65 ms</text>
+<text x="288" y="82.0" class="label" text-anchor="end">Spectacle · current screen</text><rect x="300" y="66" width="18.3" height="22" rx="4" class="other"/><text x="326.3" y="82.0" class="value">1.7 s</text>
+<text x="288" y="114.0" class="label" text-anchor="end">Spectacle · whole desktop</text><rect x="300" y="98" width="68.8" height="22" rx="4" class="other"/><text x="376.8" y="114.0" class="value">6.4 s</text>
+<text x="288" y="146.0" class="label" text-anchor="end">Flameshot 14 (Flatpak) · screen</text><rect x="300" y="130" width="115.0" height="22" rx="4" class="other"/><text x="423.0" y="146.0" class="value">10.7 s</text>
+<text x="288" y="178.0" class="label" text-anchor="end">Flameshot 12.1 (Fedora) · whole desktop</text><rect x="300" y="162" width="390.0" height="22" rx="4" class="other"/><text x="698.0" y="178.0" class="value">36.3 s</text>
+<text x="0" y="234" class="title">1 monitor · 1920×1080 px</text>
+<text x="288" y="260.0" class="label strong" text-anchor="end">QuickSnap</text><rect x="300" y="244" width="46.4" height="22" rx="4" class="ours"/><text x="354.4" y="260.0" class="value strong">69 ms</text>
+<text x="288" y="292.0" class="label" text-anchor="end">Spectacle · current screen</text><rect x="300" y="276" width="349.7" height="22" rx="4" class="other"/><text x="657.7" y="292.0" class="value">520 ms</text>
+<text x="288" y="324.0" class="label" text-anchor="end">Flameshot 12.1 (Fedora) · whole desktop</text><rect x="300" y="308" width="390.0" height="22" rx="4" class="other"/><text x="698.0" y="324.0" class="value">580 ms</text>
+<text x="0" y="358" class="label">Each panel has its own scale. Lower is better.</text>
+</svg>
