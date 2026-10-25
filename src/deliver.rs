@@ -50,7 +50,8 @@ fn copy(png: &[u8]) -> Result<(), String> {
 }
 
 fn save(png: &[u8]) -> Result<PathBuf, String> {
-    let dir = PathBuf::from(std::env::var_os("HOME").ok_or("HOME is not set")?).join("Pictures");
+    let home = PathBuf::from(std::env::var_os("HOME").ok_or("HOME is not set")?);
+    let dir = pictures_dir(&home).unwrap_or_else(|| home.join("Pictures"));
     std::fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
     let stem = chrono::Local::now().format("Screenshot_%Y%m%d_%H%M%S").to_string();
     let mut path = dir.join(format!("{stem}.png"));
@@ -61,4 +62,18 @@ fn save(png: &[u8]) -> Result<PathBuf, String> {
     }
     std::fs::write(&path, png).map_err(|e| format!("{}: {e}", path.display()))?;
     Ok(path)
+}
+
+/// XDG_PICTURES_DIR from user-dirs.dirs, which is localised ("~/Afbeeldingen" in Dutch).
+fn pictures_dir(home: &std::path::Path) -> Option<PathBuf> {
+    let config = std::env::var_os("XDG_CONFIG_HOME").map_or_else(|| home.join(".config"), PathBuf::from);
+    let dirs = std::fs::read_to_string(config.join("user-dirs.dirs")).ok()?;
+    let value = dirs.lines().find_map(|l| l.trim().strip_prefix("XDG_PICTURES_DIR="))?;
+    let value = value.trim_matches('"');
+    let path = match value.strip_prefix("$HOME") {
+        Some(rest) => home.join(rest.trim_start_matches('/')),
+        None => PathBuf::from(value),
+    };
+    // "$HOME/" alone means the feature is disabled.
+    (path.is_absolute() && path != home).then_some(path)
 }
