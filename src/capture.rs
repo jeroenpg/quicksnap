@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::io::Read;
 use std::os::fd::{AsFd, AsRawFd, OwnedFd};
+use std::sync::OnceLock;
 use std::time::Instant;
 
 use zbus::blocking::Connection;
@@ -21,6 +22,23 @@ const DIM: u32 = 120;
 /// Linux caps unprivileged pipes at /proc/sys/fs/pipe-max-size (1 MiB by default).
 const PIPE_SIZE: i32 = 1 << 20;
 
+/// Whether KWin runs this session. Otherwise (COSMIC, other wlroots-style compositors) screens
+/// are captured with the ext-image-copy-capture Wayland protocol instead.
+pub fn is_kwin(conn: &Connection) -> bool {
+    static KWIN: OnceLock<bool> = OnceLock::new();
+    *KWIN.get_or_init(|| {
+        conn.call_method(
+            Some("org.freedesktop.DBus"),
+            "/org/freedesktop/DBus",
+            Some("org.freedesktop.DBus"),
+            "NameHasOwner",
+            &("org.kde.KWin",),
+        )
+        .and_then(|reply| reply.body().deserialize())
+        .unwrap_or(false)
+    })
+}
+
 /// Name of the output under the mouse (KWin's active screen follows the mouse by default).
 pub fn active_output(conn: &Connection) -> Option<String> {
     let reply = conn
@@ -36,12 +54,16 @@ pub type OutputSize = (String, usize);
 /// on its main thread, so concurrent requests are slow and delay our overlay from mapping.
 /// Then `before_rest(shown_first)` runs (the app waits there until that overlay is on
 /// screen; `false` aborts); the rest are then taken one by one so KWin is never blocked long.
+/// Without KWin all screens are captured at once and `before_rest(false)` runs alongside.
 pub fn capture_all(
     conn: &Connection,
     outputs: Vec<OutputSize>,
     done: impl Fn(String, Result<Image, String>),
-    before_rest: impl FnOnce(bool) -> bool,
+    before_rest: impl FnOnce(bool) -> bool + Send,
 ) {
+    if !is_kwin(conn) {
+        return crate::screencopy::capture_all(outputs, done, before_rest);
+    }
     let active = active_output(conn);
     let (first, rest): (Vec<_>, Vec<_>) =
         outputs.into_iter().partition(|(name, _)| Some(name) == active.as_ref());
@@ -101,7 +123,13 @@ pub fn capture_screen(conn: &Connection, output: &str, expected: usize) -> Resul
             .and_then(|v| u32::try_from(v).ok())
             .ok_or_else(|| format!("KWin reply is missing {key}"))
     };
-    let img = convert(raw, get("width")?, get("height")?, get("stride")?, get("format")?)?;
+    // QImage formats: RGB32/ARGB32(_Premultiplied) are BGRA in memory, RGBX/RGBA8888 are RGBA.
+    let swap = match get("format")? {
+        4 | 5 | 6 => false,
+        16 | 17 | 18 => true,
+        other => return Err(format!("unsupported QImage format {other}")),
+    };
+    let img = convert(raw, get("width")?, get("height")?, get("stride")?, swap)?;
     if std::env::var_os("QUICKSNAP_DEBUG").is_some() {
         eprintln!(
             "quicksnap: {output}: kwin reply {replied:?}, pixels {fetched:?}, ready {:?}",
@@ -111,19 +139,14 @@ pub fn capture_screen(conn: &Connection, output: &str, expected: usize) -> Resul
     Ok(img)
 }
 
-fn convert(raw: Vec<u8>, width: u32, height: u32, stride: u32, format: u32) -> Result<Image, String> {
+/// Turn raw 4-byte pixels into an `Image`; `swap` means they are RGBA rather than BGRA.
+pub fn convert(raw: Vec<u8>, width: u32, height: u32, stride: u32, swap: bool) -> Result<Image, String> {
     let (w, h, stride) = (width as usize, height as usize, stride as usize);
     if stride < w * 4 || raw.len() < stride * h {
         return Err(format!("short image: {} bytes for {width}x{height}", raw.len()));
     }
-    // QImage formats: RGB32/ARGB32(_Premultiplied) are BGRA in memory, RGBX/RGBA8888 are RGBA.
-    let swap = match format {
-        4 | 5 | 6 => false,
-        16 | 17 | 18 => true,
-        other => return Err(format!("unsupported QImage format {other}")),
-    };
 
-    // Reuse KWin's buffer when it is already tightly packed (the usual case).
+    // Reuse the captured buffer when it is already tightly packed (the usual case).
     let mut data = if stride == w * 4 {
         let mut raw = raw;
         raw.truncate(w * h * 4);

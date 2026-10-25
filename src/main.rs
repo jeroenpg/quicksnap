@@ -5,6 +5,7 @@ mod dbus;
 mod deliver;
 mod editor;
 mod render;
+mod screencopy;
 
 use std::process::ExitCode;
 use std::sync::{Arc, Mutex};
@@ -48,11 +49,16 @@ fn daemon() -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
-    dbus::listen_shortcut(conn.clone(), tx.clone());
-    match dbus::register_shortcut(&conn) {
-        Ok(keys) if keys.iter().any(|&k| k != 0) => eprintln!("quicksnap: shortcut active: {keys:?}"),
-        Ok(_) => eprintln!("quicksnap: no shortcut bound (is Print taken by another app?)"),
-        Err(e) => eprintln!("quicksnap: cannot register shortcut: {e}"),
+    if capture::is_kwin(&conn) {
+        dbus::listen_shortcut(conn.clone(), tx.clone());
+        match dbus::register_shortcut(&conn) {
+            Ok(keys) if keys.iter().any(|&k| k != 0) => eprintln!("quicksnap: shortcut active: {keys:?}"),
+            Ok(_) => eprintln!("quicksnap: no shortcut bound (is Print taken by another app?)"),
+            Err(e) => eprintln!("quicksnap: cannot register shortcut: {e}"),
+        }
+    } else {
+        // No kglobalaccel here: the desktop's own shortcut runs `quicksnap capture` (install.sh).
+        eprintln!("quicksnap: not on KWin; capturing via ext-image-copy-capture");
     }
     match app::run(conn, tx, rx, outputs) {
         Ok(()) => ExitCode::SUCCESS,

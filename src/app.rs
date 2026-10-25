@@ -209,14 +209,14 @@ impl App {
         let sizes = outputs.iter().map(|(name, output)| (name.clone(), self.expected_size(output))).collect();
         let (conn, tx) = (self.dbus.clone(), self.tx.clone());
         std::thread::spawn(move || {
+            let windows_conn = conn.clone();
             capture::capture_all(
                 &conn,
                 sizes,
                 |name, result| {
                     let _ = tx.send(Msg::Captured(id, name, result));
                 },
-                // Disconnected means the session ended (Esc): skip the other screens.
-                |shown_first| {
+                move |shown_first| {
                     if shown_first {
                         let released = release_rx.recv_timeout(Duration::from_millis(500));
                         // Disconnected means the session ended (Esc): skip the other screens.
@@ -225,7 +225,10 @@ impl App {
                         }
                     }
                     // Only now, so it never delays the first overlay.
-                    crate::dbus::query_windows(&conn);
+                    // Without KWin there is no window list: right-click selects the whole screen.
+                    if capture::is_kwin(&windows_conn) {
+                        crate::dbus::query_windows(&windows_conn);
+                    }
                     true
                 },
             );
