@@ -44,7 +44,7 @@ use wayland_protocols::wp::viewporter::client::{wp_viewport::WpViewport, wp_view
 use crate::capture::{self, Image, OutputSize};
 use crate::deliver::{self, Action};
 use crate::editor::{Editor, Sel, Tool, View};
-use crate::{browser, render, Msg};
+use crate::{browser, render, toplevels, Msg};
 
 const BTN_LEFT: u32 = 0x110;
 const BTN_RIGHT: u32 = 0x111;
@@ -207,9 +207,13 @@ impl App {
             windows: Vec::new(),
         });
         let sizes = outputs.iter().map(|(name, output)| (name.clone(), self.expected_size(output))).collect();
+        let origins: Vec<_> = outputs
+            .iter()
+            .filter_map(|(name, o)| Some((name.clone(), self.output_state.info(o)?.logical_position?)))
+            .collect();
         let (conn, tx) = (self.dbus.clone(), self.tx.clone());
         std::thread::spawn(move || {
-            let windows_conn = conn.clone();
+            let (windows_conn, windows_tx) = (conn.clone(), tx.clone());
             capture::capture_all(
                 &conn,
                 sizes,
@@ -225,9 +229,14 @@ impl App {
                         }
                     }
                     // Only now, so it never delays the first overlay.
-                    // Without KWin there is no window list: right-click selects the whole screen.
                     if capture::is_kwin(&windows_conn) {
                         crate::dbus::query_windows(&windows_conn);
+                    } else {
+                        // Without a window list right-click falls back to the whole screen.
+                        match toplevels::query(&origins) {
+                            Ok(list) => drop(windows_tx.send(Msg::Windows(list))),
+                            Err(e) => eprintln!("quicksnap: {e}"),
+                        }
                     }
                     true
                 },

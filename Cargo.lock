@@ -727,6 +727,7 @@ dependencies = [
  "tiny-skia",
  "wayland-client",
  "wayland-protocols",
+ "wayland-scanner",
  "zbus",
 ]
 

@@ -10,6 +10,7 @@ readme = "README.md"
 [dependencies]
 smithay-client-toolkit = "0.19"
 wayland-client = "0.31"
+wayland-scanner = "0.31"
 wayland-protocols = { version = "0.32", features = ["client", "staging"] }
 zbus = { version = "5", default-features = false, features = ["blocking-api", "async-io"] }
 tiny-skia = { version = "0.11", default-features = false, features = ["std", "simd"] }

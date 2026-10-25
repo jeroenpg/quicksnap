@@ -6,6 +6,7 @@ mod deliver;
 mod editor;
 mod render;
 mod screencopy;
+mod toplevels;
 
 use std::process::ExitCode;
 use std::sync::{Arc, Mutex};
@@ -17,7 +18,7 @@ pub enum Msg {
     Trigger,
     /// Close the overlay without doing anything (`quicksnap cancel`).
     Cancel,
-    /// Window frames reported by the KWin script: "x,y,w,h,class;...", topmost first.
+    /// Window frames from the KWin script or COSMIC toplevel info: "x,y,w,h,class;...", topmost first.
     Windows(String),
     /// A screen finished capturing for session `id`.
     Captured(u64, String, Result<capture::Image, String>),
