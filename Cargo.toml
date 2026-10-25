@@ -2,7 +2,7 @@
 name = "quicksnap"
 version = "0.1.0"
 edition = "2021"
-description = "Instant region screenshots with arrows for KDE Plasma (Wayland)"
+description = "Instant region screenshots with arrows for KDE Plasma and COSMIC (Wayland)"
 license = "MIT"
 repository = "https://github.com/jeroenpg/quicksnap"
 readme = "README.md"

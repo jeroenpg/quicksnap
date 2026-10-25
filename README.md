@@ -1,7 +1,7 @@
 # QuickSnap
 
 **Press Print and start selecting ~70 ms later.** A tiny region-screenshot tool for KDE Plasma
-on Wayland: select, draw a red arrow, Ctrl+C. No waiting several seconds for the overlay.
+and COSMIC on Wayland: select, draw a red arrow, Ctrl+C. No waiting several seconds for the overlay.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/benchmark-dark.svg">
@@ -21,7 +21,7 @@ on Wayland: select, draw a red arrow, Ctrl+C. No waiting several seconds for the
 | Drag inside        | Draw with the current tool, in red                              |
 | 1/A · 2/C · 3/R · 4/P | Arrow (default) · circle · rectangle · free draw (or click the tool bar) |
 | **Ctrl+C** / Enter | Copy to the clipboard                                           |
-| **Ctrl+S**         | Save to `~/Pictures/Screenshot_<date>_<time>.png`               |
+| **Ctrl+S**         | Save to `~/Pictures/Screenshot_<date>_<time>.png` (your XDG pictures folder) |
 | Ctrl+Z             | Undo the last shape                                             |
 | Esc                | Cancel                                                          |
 
@@ -57,6 +57,11 @@ Its whole-desktop PNG took 6.4 s, almost all of it CPU time spent compressing.
 4. **One layer-shell surface per screen**, drawn in software with
    [tiny-skia](https://github.com/RazrFalcon/tiny-skia). No toolkit to load.
 
+On **COSMIC** there is no KWin to ask, so QuickSnap uses the `ext-image-copy-capture-v1`
+Wayland protocol instead: all screens are copied into shared memory at once (~25 ms for the
+first, ~50 ms for three 1080p screens). COSMIC's own shortcut settings run `quicksnap capture`
+on Print.
+
 ## Benchmarks
 
 Fedora 41, KDE Plasma 6.4.4, KWin 6.4.4. AMD Ryzen (Phoenix) laptop with an NVIDIA GTX 1650 SUPER
@@ -91,7 +96,7 @@ quicksnap bench         # capture timings per screen without showing anything
 
 ## Install
 
-Needs KDE Plasma 6 on Wayland, `wl-clipboard` (for `wl-copy`) and `libxkbcommon`.
+Needs KDE Plasma 6 or COSMIC on Wayland, `wl-clipboard` (for `wl-copy`) and `libxkbcommon`.
 
 **From a release** (x86_64):
 
@@ -109,6 +114,11 @@ screenshots to programs whose desktop file asks for `org.kde.KWin.ScreenShot2`),
 Meta+Shift+Print so Print is free. You can rebind Print in System Settings → Keyboard → Shortcuts
 → QuickSnap.
 
+On COSMIC (detected from `XDG_CURRENT_DESKTOP`) it instead adds Print → `quicksnap capture` to
+`~/.config/cosmic/com.system76.CosmicSettings.Shortcuts/v1/custom`, which overrides the default
+screenshot binding, and moves COSMIC's screenshot tool to Super+Shift+Print. An existing file is
+backed up next to it first. Change it in Settings → Keyboard → Keyboard Shortcuts.
+
 Logs: `journalctl --user -u quicksnap`. Set `QUICKSNAP_DEBUG=1` on the service for per-screen
 timings.
 
@@ -120,6 +130,9 @@ rm ~/.local/bin/quicksnap ~/.local/share/applications/quicksnap.desktop \
    ~/.config/systemd/user/quicksnap.service
 ```
 
+On COSMIC also remove the two `Print` lines from
+`~/.config/cosmic/com.system76.CosmicSettings.Shortcuts/v1/custom`.
+
 ## How right-click on a browser works
 
 Wayland apps can't see other windows, so on each capture QuickSnap loads a small KWin script
@@ -129,9 +142,14 @@ are drawn in a few perfectly flat colors, and the page starts at the first full-
 which those colors stop. If it can't tell, for example with fullscreen video, you get the whole
 window.
 
+On COSMIC the window frames come from the compositor's `zcosmic_toplevel_info_v1` protocol
+instead. It doesn't tell which window is on top, so where windows overlap the focused one wins,
+then the smaller one.
+
 ## Limits
 
-- KDE Plasma 6 on Wayland only (KWin's screenshot API and layer-shell).
+- KDE Plasma 6 or COSMIC on Wayland only (KWin's screenshot API or ext-image-copy-capture, and
+  layer-shell).
 - A selection stays on one monitor.
 - Right-click within ~100 ms of pressing Print may select the whole screen, because the window
   list hasn't arrived yet.
