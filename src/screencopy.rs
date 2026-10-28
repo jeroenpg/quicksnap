@@ -44,6 +44,8 @@ struct Shot {
     formats: Vec<wl_shm::Format>,
     /// memfd backing the wl_buffer, row stride and whether the pixels are RGBA.
     buffer: Option<(File, u32, bool)>,
+    /// How the compositor turned the screen into the buffer (rotated monitors).
+    transform: wl_output::Transform,
     status: Status,
 }
 
@@ -109,6 +111,7 @@ fn capture(names: &[String], mut done: impl FnMut(String, Result<Image, String>)
             size: (0, 0),
             formats: Vec::new(),
             buffer: None,
+            transform: wl_output::Transform::Normal,
             status: Status::Constraints,
         });
     }
@@ -139,7 +142,44 @@ fn read(shot: &mut Shot) -> Result<Image, String> {
     let (w, h) = shot.size;
     let mut raw = vec![0u8; stride as usize * h as usize];
     file.read_exact_at(&mut raw, 0).map_err(|e| format!("{}: read buffer: {e}", shot.name))?;
+    let (raw, w, h, stride) = untransform(raw, w, h, stride, shot.transform);
     capture::convert(raw, w, h, stride, swap)
+}
+
+/// Undo the `transform` the compositor applied to a `w`×`h` buffer, so the picture is upright
+/// as on screen. Returns the pixels tightly packed with their new size and stride.
+fn untransform(
+    raw: Vec<u8>,
+    w: u32,
+    h: u32,
+    stride: u32,
+    transform: wl_output::Transform,
+) -> (Vec<u8>, u32, u32, u32) {
+    use wl_output::Transform as T;
+    // Buffer pixel shown at screen pixel (x, y), given the buffer's width and height.
+    // wl_output rotations are counter-clockwise; flipped ones mirror first and are their own inverse.
+    let source: fn(usize, usize, usize, usize) -> (usize, usize) = match transform {
+        T::_90 => |x, y, _, h| (y, h - 1 - x),
+        T::_180 => |x, y, w, h| (w - 1 - x, h - 1 - y),
+        T::_270 => |x, y, w, _| (w - 1 - y, x),
+        T::Flipped => |x, y, w, _| (w - 1 - x, y),
+        T::Flipped90 => |x, y, _, _| (y, x),
+        T::Flipped180 => |x, y, _, h| (x, h - 1 - y),
+        T::Flipped270 => |x, y, w, h| (w - 1 - y, h - 1 - x),
+        _ => return (raw, w, h, stride),
+    };
+    let sideways = matches!(transform, T::_90 | T::_270 | T::Flipped90 | T::Flipped270);
+    let (bw, bh, stride) = (w as usize, h as usize, stride as usize);
+    let (w, h) = if sideways { (bh, bw) } else { (bw, bh) };
+    let mut out = vec![0u8; w * h * 4];
+    for (y, row) in out.chunks_exact_mut(w * 4).enumerate() {
+        for (x, px) in row.chunks_exact_mut(4).enumerate() {
+            let (sx, sy) = source(x, y, bw, bh);
+            let i = sy * stride + sx * 4;
+            px.copy_from_slice(&raw[i..i + 4]);
+        }
+    }
+    (out, w as u32, h as u32, w as u32 * 4)
 }
 
 /// Flush, wait for events up to `deadline` and dispatch them.
@@ -249,6 +289,7 @@ impl Dispatch<ExtImageCopyCaptureFrameV1, usize> for State {
         use ext_image_copy_capture_frame_v1::Event;
         let shot = &mut state.shots[idx];
         match event {
+            Event::Transform { transform: WEnum::Value(t) } => shot.transform = t,
             Event::Ready => shot.status = Status::Ready,
             Event::Failed { reason } => shot.status = Status::Failed(format!("capture failed: {reason:?}")),
             _ => {}
