@@ -15,9 +15,24 @@ esac
 
 if [ -x ./quicksnap ] && [ ! -f Cargo.toml ]; then
     SRC=./quicksnap
+    # Fails before main() if this system's glibc or libxkbcommon is too old or missing.
+    if ! err=$("$SRC" --version 2>&1); then
+        echo "error: the prebuilt quicksnap does not run here:" >&2
+        echo "  $err" >&2
+        echo "Build it from source instead: git clone, then ./install.sh (needs Rust)." >&2
+        exit 1
+    fi
 else
     cargo build --release
     SRC=target/release/quicksnap
+fi
+
+if ! command -v wl-copy >/dev/null; then
+    if command -v dnf >/dev/null; then hint="sudo dnf install wl-clipboard"
+    elif command -v pacman >/dev/null; then hint="sudo pacman -S wl-clipboard"
+    elif command -v apt-get >/dev/null; then hint="sudo apt install wl-clipboard"
+    else hint="install wl-clipboard"; fi
+    echo "warning: wl-copy not found, so Ctrl+C cannot copy. Fix: $hint" >&2
 fi
 
 # Atomic replace so a running daemon's binary is never overwritten in place.

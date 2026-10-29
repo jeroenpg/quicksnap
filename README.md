@@ -98,7 +98,12 @@ quicksnap bench         # capture timings per screen without showing anything
 
 Needs KDE Plasma 6 or COSMIC on Wayland, `wl-clipboard` (for `wl-copy`) and `libxkbcommon`.
 
-**From a release** (x86_64):
+| Distro | Install the dependencies |
+|---|---|
+| Fedora | `sudo dnf install wl-clipboard libxkbcommon` (add `libxkbcommon-devel gcc` to build from source) |
+| Arch / CachyOS | `sudo pacman -S wl-clipboard libxkbcommon` |
+
+**From a release** (x86_64, glibc 2.35 or newer, so Fedora 36+, Ubuntu 22.04+, Arch):
 
 ```sh
 tar xf quicksnap-*-x86_64-linux.tar.gz
@@ -107,6 +112,8 @@ cd quicksnap-*-x86_64-linux
 ```
 
 **From source** (Rust 1.87+): `./install.sh` in a clone builds with `cargo build --release`.
+`scripts/release.sh` builds the release tarball in a Debian 12 container (Podman or Docker) so it
+doesn't depend on the build machine's newer glibc.
 
 `install.sh` puts the binary in `~/.local/bin`. It adds a desktop file (KWin only gives
 screenshots to programs whose desktop file asks for `org.kde.KWin.ScreenShot2`), and enables the

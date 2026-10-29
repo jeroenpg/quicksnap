@@ -31,8 +31,12 @@ fn main() -> ExitCode {
         Some("capture") => client("Capture", &()),
         Some("cancel") => client("Cancel", &()),
         Some("bench") => client("Bench", &(std::env::args().skip(2).collect::<Vec<_>>(),)),
+        Some("--version") => {
+            println!("quicksnap {}", env!("CARGO_PKG_VERSION"));
+            ExitCode::SUCCESS
+        }
         Some(_) => {
-            eprintln!("usage: quicksnap [daemon|capture|cancel|bench [OUTPUT...]]");
+            eprintln!("usage: quicksnap [daemon|capture|cancel|bench [OUTPUT...]|--version]");
             ExitCode::FAILURE
         }
     }
