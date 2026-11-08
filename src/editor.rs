@@ -19,6 +19,8 @@ pub enum Shape {
     Ellipse(P, P),
     Rect(P, P),
     Pen(Vec<P>),
+    /// Numbered marker: a filled circle centred on the point with the number in it.
+    Marker(P, u8),
 }
 
 #[derive(Clone, Copy)]
@@ -227,7 +229,7 @@ impl Editor {
                     }
                     true
                 }
-                None => false,
+                Some(Shape::Marker(..)) | None => false,
             },
         }
     }
@@ -250,7 +252,7 @@ impl Editor {
                         (a.0 - b.0).hypot(a.1 - b.1) < min
                     }
                     Some(Shape::Pen(points)) => points.len() < 2,
-                    None => false,
+                    Some(Shape::Marker(..)) | None => false,
                 };
                 if tiny {
                     self.shapes.pop();
@@ -258,6 +260,16 @@ impl Editor {
                 true
             }
         }
+    }
+
+    /// Drop marker `n` at `p` on screen `idx` (number keys). Only on the screen holding the
+    /// selection, and not in the middle of a drag. Returns whether anything changed.
+    pub fn place_marker(&mut self, idx: usize, p: P, n: u8) -> bool {
+        if self.screen != Some(idx) || self.sel.is_none() || !matches!(self.drag, Drag::None) {
+            return false;
+        }
+        self.shapes.push(Shape::Marker(p, n));
+        true
     }
 
     pub fn undo(&mut self) -> bool {

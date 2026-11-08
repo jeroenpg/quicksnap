@@ -87,6 +87,8 @@ struct Session {
     editor: Editor,
     /// Screen the pointer is on.
     hover: Option<usize>,
+    /// Last pointer position on `hover`, in its physical pixels.
+    pointer: Option<(f32, f32)>,
     cursor: Option<CursorIcon>,
     shown: bool,
     /// Releases the capture of the remaining screens once the first overlay is visible.
@@ -201,6 +203,7 @@ impl App {
             errors: Vec::new(),
             editor: Editor::default(),
             hover: None,
+            pointer: None,
             cursor: None,
             shown: false,
             release_rest: Some(release_tx),
@@ -607,12 +610,24 @@ impl KeyboardHandler for App {
                     }
                 }
             }
+            (false, Some(c @ '0'..='9')) => {
+                // 1..9 place markers #1..#9 under the pointer; 0 places #10.
+                let n = match c as u8 - b'0' {
+                    0 => 10,
+                    d => d,
+                };
+                let sess = self.session.as_mut().unwrap();
+                let (Some(idx), Some(p)) = (sess.hover, sess.pointer) else { return };
+                if sess.editor.place_marker(idx, p, n) {
+                    mark_dirty(sess, idx, &self.shm, qh);
+                }
+            }
             (false, Some(c)) => {
                 let tool = match c {
-                    '1' | 'a' => Tool::Arrow,
-                    '2' | 'c' | 'o' => Tool::Ellipse,
-                    '3' | 'r' => Tool::Rect,
-                    '4' | 'p' | 'f' => Tool::Pen,
+                    'a' => Tool::Arrow,
+                    'c' | 'o' => Tool::Ellipse,
+                    'r' => Tool::Rect,
+                    'p' | 'f' => Tool::Pen,
                     _ => return,
                 };
                 let sess = self.session.as_mut().unwrap();
@@ -650,10 +665,12 @@ impl PointerHandler for App {
             match event.kind {
                 PointerEventKind::Enter { .. } => {
                     sess.hover = Some(idx);
+                    sess.pointer = Some(p);
                     sess.cursor = None;
                 }
                 PointerEventKind::Motion { .. } => {
                     sess.hover = Some(idx);
+                    sess.pointer = Some(p);
                     if sess.editor.motion(idx, p, &view) {
                         mark_dirty(sess, idx, &self.shm, qh);
                     }

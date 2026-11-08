@@ -99,6 +99,121 @@ fn draw_shapes(pm: &mut PixmapMut, shapes: &[Shape], scale: f32, t: Transform) {
                     pm.stroke_path(&path, &paint, &stroke(width), t, None);
                 }
             }
+            Shape::Marker(c, n) => draw_marker(pm, *c, *n, scale, t),
+        }
+    }
+}
+
+/// Radius of a numbered marker in logical pixels.
+pub const MARKER_RADIUS: f32 = 16.0;
+
+/// A red disc with a white ring and the number `n` in white, centred on `c`.
+fn draw_marker(pm: &mut PixmapMut, c: P, n: u8, scale: f32, t: Transform) {
+    let r = MARKER_RADIUS * scale;
+    // A soft shadow keeps it readable on red or white backgrounds.
+    if let Some(path) = PathBuilder::from_circle(c.0, c.1 + 1.5 * scale, r + 2.5 * scale) {
+        pm.fill_path(&path, &paint(color(0, 0, 0, 90)), FillRule::Winding, t, None);
+    }
+    if let Some(path) = PathBuilder::from_circle(c.0, c.1, r) {
+        pm.fill_path(&path, &paint(red()), FillRule::Winding, t, None);
+        pm.stroke_path(&path, &paint(color(255, 255, 255, 255)), &stroke(2.5 * scale), t, None);
+    }
+    let digits: Vec<u8> = n.to_string().bytes().map(|b| b - b'0').collect();
+    // Glyphs are 1 unit tall; two digits get a little smaller to fit the disc.
+    let h = if digits.len() > 1 { 0.8 * r } else { 0.95 * r };
+    let gap = 0.2;
+    let ink = |d: u8| if d == 1 { (0.06, 0.30) } else if d == 4 { (0.0, 0.58) } else { (0.0, 0.56) };
+    let total: f32 = digits.iter().map(|&d| ink(d).1 - ink(d).0).sum::<f32>() + gap * (digits.len() - 1) as f32;
+    let mut x = c.0 - total * h / 2.0;
+    let y = c.1 - h / 2.0;
+    let mut pb = PathBuilder::new();
+    for &d in &digits {
+        let (x0, x1) = ink(d);
+        push_digit(&mut pb, d, x - x0 * h, y, h);
+        x += (x1 - x0 + gap) * h;
+    }
+    if let Some(path) = pb.finish() {
+        pm.stroke_path(&path, &paint(color(255, 255, 255, 255)), &stroke(0.17 * h), t, None);
+    }
+}
+
+/// Add the stroke outline of digit `d` to `pb`, in a box `size` tall with its top-left at (x, y).
+/// Glyph coordinates are in units of the height: about 0.56 wide, 1 tall, y pointing down.
+fn push_digit(pb: &mut PathBuilder, d: u8, x: f32, y: f32, size: f32) {
+    let p = |gx: f32, gy: f32| (x + gx * size, y + gy * size);
+    let mv = |pb: &mut PathBuilder, a: f32, b: f32| {
+        let (px, py) = p(a, b);
+        pb.move_to(px, py);
+    };
+    let ln = |pb: &mut PathBuilder, a: f32, b: f32| {
+        let (px, py) = p(a, b);
+        pb.line_to(px, py);
+    };
+    let quad = |pb: &mut PathBuilder, c: [f32; 4]| {
+        let ((ax, ay), (bx, by)) = (p(c[0], c[1]), p(c[2], c[3]));
+        pb.quad_to(ax, ay, bx, by);
+    };
+    let cubic = |pb: &mut PathBuilder, c: [f32; 6]| {
+        let ((ax, ay), (bx, by), (cx, cy)) = (p(c[0], c[1]), p(c[2], c[3]), p(c[4], c[5]));
+        pb.cubic_to(ax, ay, bx, by, cx, cy);
+    };
+    let oval = |pb: &mut PathBuilder, l: f32, t: f32, r: f32, b: f32| {
+        let ((l, t), (r, b)) = (p(l, t), p(r, b));
+        if let Some(rect) = Rect::from_ltrb(l, t, r, b) {
+            pb.push_oval(rect);
+        }
+    };
+    match d {
+        0 => oval(pb, 0.0, 0.0, 0.56, 1.0),
+        1 => {
+            mv(pb, 0.06, 0.2);
+            ln(pb, 0.30, 0.0);
+            ln(pb, 0.30, 1.0);
+        }
+        2 => {
+            mv(pb, 0.02, 0.24);
+            cubic(pb, [0.04, -0.06, 0.56, -0.06, 0.56, 0.28]);
+            cubic(pb, [0.56, 0.5, 0.12, 0.72, 0.0, 1.0]);
+            ln(pb, 0.56, 1.0);
+        }
+        3 => {
+            mv(pb, 0.03, 0.14);
+            cubic(pb, [0.14, -0.05, 0.54, -0.04, 0.53, 0.24]);
+            cubic(pb, [0.52, 0.42, 0.36, 0.47, 0.22, 0.47]);
+            cubic(pb, [0.44, 0.47, 0.58, 0.58, 0.56, 0.74]);
+            cubic(pb, [0.54, 1.03, 0.12, 1.04, 0.0, 0.86]);
+        }
+        4 => {
+            mv(pb, 0.42, 1.0);
+            ln(pb, 0.42, 0.0);
+            ln(pb, 0.0, 0.68);
+            ln(pb, 0.58, 0.68);
+        }
+        5 => {
+            mv(pb, 0.52, 0.0);
+            ln(pb, 0.08, 0.0);
+            ln(pb, 0.04, 0.45);
+            cubic(pb, [0.3, 0.32, 0.58, 0.42, 0.56, 0.68]);
+            cubic(pb, [0.55, 1.03, 0.12, 1.04, 0.0, 0.86]);
+        }
+        6 => {
+            mv(pb, 0.48, 0.02);
+            quad(pb, [0.02, 0.1, 0.0, 0.68]);
+            oval(pb, 0.0, 0.38, 0.56, 1.0);
+        }
+        7 => {
+            mv(pb, 0.0, 0.0);
+            ln(pb, 0.56, 0.0);
+            ln(pb, 0.18, 1.0);
+        }
+        8 => {
+            oval(pb, 0.05, 0.0, 0.51, 0.46);
+            oval(pb, 0.0, 0.46, 0.56, 1.0);
+        }
+        _ => {
+            oval(pb, 0.0, 0.0, 0.56, 0.62);
+            mv(pb, 0.56, 0.32);
+            quad(pb, [0.54, 0.9, 0.08, 0.98]);
         }
     }
 }
@@ -306,6 +421,8 @@ mod tests {
             Shape::Rect((420.0, 250.0), (590.0, 350.0)),
             Shape::Pen((0..40).map(|i| (150.0 + i as f32 * 6.0, 120.0 + (i as f32 * 0.5).sin() * 15.0)).collect()),
         ];
+        // Markers 1..10 in a row along the bottom of the selection.
+        ed.shapes.extend((1..=10).map(|n| Shape::Marker((150.0 + (n - 1) as f32 * 48.0, 300.0), n)));
         let mut canvas = vec![0u8; img.data.len()];
         compose(&mut canvas, &img, &ed, 0, 1.0);
         write_png("/tmp/quicksnap-preview.png", img.width, img.height, &canvas);
@@ -315,5 +432,30 @@ mod tests {
         // The arrow tip area is red in the export.
         let tip = ((150 - 80 + 6) * 500 + (380 - 120 - 6)) as usize * 3;
         assert!(rgb[tip] > 200 && rgb[tip + 1] < 80 && rgb[tip + 2] < 80, "arrow is red: {:?}", &rgb[tip..tip + 3]);
+        // Marker 1 sits at (150, 300): white digit stroke in the middle, red disc beside it.
+        let at = |x: u32, y: u32| ((y - 80) * 500 + (x - 120)) as usize * 3;
+        let mid = at(151, 300);
+        assert!(rgb[mid..mid + 3].iter().all(|&c| c > 200), "digit is white: {:?}", &rgb[mid..mid + 3]);
+        let disc = at(140, 306);
+        assert!(rgb[disc] > 200 && rgb[disc + 1] < 80, "disc is red: {:?}", &rgb[disc..disc + 3]);
+    }
+
+    #[test]
+    fn number_keys_place_markers() {
+        let img = test_image(800, 500);
+        let v = view(&img, 1.0);
+        let mut ed = Editor::default();
+        // No selection yet: nothing to annotate.
+        assert!(!ed.place_marker(0, (50.0, 50.0), 1));
+        ed.press(0, (100.0, 100.0), &v);
+        ed.motion(0, (500.0, 300.0), &v);
+        ed.release(&v);
+        // Not on another screen, but anywhere on this one.
+        assert!(!ed.place_marker(1, (50.0, 50.0), 1));
+        assert!(ed.place_marker(0, (200.0, 200.0), 1));
+        assert!(ed.place_marker(0, (300.0, 200.0), 10));
+        assert!(matches!(ed.shapes.as_slice(), [Shape::Marker(_, 1), Shape::Marker(_, 10)]));
+        assert!(ed.undo());
+        assert_eq!(ed.shapes.len(), 1);
     }
 }

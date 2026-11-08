@@ -19,7 +19,8 @@ and COSMIC on Wayland: select, draw a red arrow, Ctrl+C. No waiting several seco
 | Right-click        | Select the window under the cursor (on the desktop: the whole screen) |
 | Right-click a browser page | Select just the page: no tabs, address bar or bookmarks. Right-click the tabs/toolbar for the whole window |
 | Drag inside        | Draw with the current tool, in red                              |
-| 1/A · 2/C · 3/R · 4/P | Arrow (default) · circle · rectangle · free draw (or click the tool bar) |
+| A · C · R · P      | Arrow (default) · circle · rectangle · free draw (or click the tool bar) |
+| 1 … 9, 0           | Put a numbered marker (#1 … #9, 0 = #10) under the pointer      |
 | **Ctrl+C** / Enter | Copy to the clipboard                                           |
 | **Ctrl+S**         | Save to `~/Pictures/Screenshot_<date>_<time>.png` (your XDG pictures folder) |
 | Ctrl+Z             | Undo the last shape                                             |
