@@ -421,8 +421,13 @@ mod tests {
             Shape::Rect((420.0, 250.0), (590.0, 350.0)),
             Shape::Pen((0..40).map(|i| (150.0 + i as f32 * 6.0, 120.0 + (i as f32 * 0.5).sin() * 15.0)).collect()),
         ];
-        // Markers 1..10 in a row along the bottom of the selection.
-        ed.shapes.extend((1..=10).map(|n| Shape::Marker((150.0 + (n - 1) as f32 * 48.0, 300.0), n)));
+        // Numbered steps on the arrow's tail, the circle and the rectangle's corner. This frame
+        // is docs/demo.png.
+        ed.shapes.extend([
+            Shape::Marker((160.0, 340.0), 1),
+            Shape::Marker((440.0, 118.0), 2),
+            Shape::Marker((420.0, 250.0), 3),
+        ]);
         let mut canvas = vec![0u8; img.data.len()];
         compose(&mut canvas, &img, &ed, 0, 1.0);
         write_png("/tmp/quicksnap-preview.png", img.width, img.height, &canvas);
@@ -432,11 +437,11 @@ mod tests {
         // The arrow tip area is red in the export.
         let tip = ((150 - 80 + 6) * 500 + (380 - 120 - 6)) as usize * 3;
         assert!(rgb[tip] > 200 && rgb[tip + 1] < 80 && rgb[tip + 2] < 80, "arrow is red: {:?}", &rgb[tip..tip + 3]);
-        // Marker 1 sits at (150, 300): white digit stroke in the middle, red disc beside it.
+        // Marker 1 sits at (160, 340): white digit stroke in the middle, red disc beside it.
         let at = |x: u32, y: u32| ((y - 80) * 500 + (x - 120)) as usize * 3;
-        let mid = at(151, 300);
+        let mid = at(162, 340);
         assert!(rgb[mid..mid + 3].iter().all(|&c| c > 200), "digit is white: {:?}", &rgb[mid..mid + 3]);
-        let disc = at(140, 306);
+        let disc = at(150, 346);
         assert!(rgb[disc] > 200 && rgb[disc + 1] < 80, "disc is red: {:?}", &rgb[disc..disc + 3]);
     }
 

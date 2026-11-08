@@ -8,7 +8,7 @@ and COSMIC on Wayland: select, draw a red arrow, Ctrl+C. No waiting several seco
   <img alt="Time until you can start selecting: QuickSnap 65 ms; on four monitors Spectacle 1.7–6.4 s and Flameshot 10.7–36.3 s; on one monitor Spectacle 520 ms and Flameshot 580 ms" src="docs/benchmark-light.svg">
 </picture>
 
-<img alt="QuickSnap overlay with a selection, red arrow, circle, rectangle and pen stroke, and the tool bar under it" src="docs/demo.png" width="560">
+<img alt="QuickSnap overlay with a selection, red arrow, circle, rectangle and pen stroke, numbered markers 1 to 3, and the tool bar under it" src="docs/demo.png" width="560">
 
 ## What it does
 
